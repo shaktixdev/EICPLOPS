@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 
 const FLOW_STEPS = [
   { id: '1', label: 'Issue gate slip', hint: 'Dispatch truck with cargo & meter' },
@@ -10,8 +9,22 @@ const FLOW_STEPS = [
   { id: '3', label: 'Log arrival', hint: 'Close trip with end meter & expenses' },
 ] as const
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms)
+    promise
+      .then((value) => {
+        clearTimeout(timer)
+        resolve(value)
+      })
+      .catch((err) => {
+        clearTimeout(timer)
+        reject(err)
+      })
+  })
+}
+
 export default function LoginPage() {
-  const router = useRouter()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -23,18 +36,33 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const result = await signIn('credentials', {
-      username,
-      password,
-      redirect: false,
-    })
+    try {
+      const result = await withTimeout(
+        signIn('credentials', {
+          username: username.trim(),
+          password,
+          redirect: false,
+          callbackUrl: '/dashboard',
+        }),
+        20000,
+        'Sign-in timed out. Check Vercel env vars and MongoDB network access, then try again.'
+      )
 
-    if (result?.error) {
-      setError('Invalid email or password.')
+      if (!result) {
+        setError('Sign-in failed. Please try again.')
+        return
+      }
+
+      if (result.error) {
+        setError('Invalid email or password.')
+        return
+      }
+
+      // Hard navigation so the session cookie is picked up reliably on Vercel
+      window.location.assign(result.url || '/dashboard')
+    } catch (err: any) {
+      setError(err?.message || 'Sign-in failed. Please try again.')
       setLoading(false)
-    } else {
-      router.push('/dashboard')
-      router.refresh()
     }
   }
 
