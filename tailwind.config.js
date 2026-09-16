@@ -80,6 +80,14 @@ module.exports = {
         '3xl': '1.75rem',
         full: '9999px',
       },
+      transitionTimingFunction: {
+        apple: 'cubic-bezier(0.32, 0.72, 0, 1)',
+        'apple-soft': 'cubic-bezier(0.22, 1, 0.36, 1)',
+      },
+      transitionDuration: {
+        400: '400ms',
+        500: '500ms',
+      },
       spacing: {
         'gutter-desktop': '1.25rem',
         margin: '1.25rem',

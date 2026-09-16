@@ -50,7 +50,8 @@ export function Sidebar() {
       <Link
         href={href}
         title={label}
-        className={`group relative flex items-center rounded-full transition-all duration-250 ${
+        data-active={active ? 'true' : 'false'}
+        className={`nav-pill group relative flex items-center rounded-full ${
           open ? 'w-full gap-3 px-3 h-11 justify-start' : 'w-11 h-11 justify-center'
         } ${
           active
@@ -58,7 +59,7 @@ export function Sidebar() {
             : 'text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--accent-600)]'
         }`}
       >
-        <span className="material-symbols-outlined text-[22px] shrink-0 transition-transform duration-200 group-hover:scale-110">
+        <span className="material-symbols-outlined text-[22px] shrink-0 transition-transform duration-150 ease-apple group-active:scale-95">
           {icon}
         </span>
         {open ? (
@@ -76,8 +77,8 @@ export function Sidebar() {
   const bottomItems = BOTTOM_NAV.filter((i) => !i.permission || can(i.permission))
 
   return (
-    <aside
-      className={`fixed left-4 top-4 bottom-4 z-50 flex flex-col py-4 surface-card animate-fade-in transition-all duration-300 ease-out ${
+      <aside
+      className={`fixed left-4 top-4 bottom-4 z-50 flex flex-col py-4 surface-card animate-fade-in transition-all duration-300 ease-apple ${
         open ? 'w-[220px] px-3 items-stretch' : 'w-[72px] items-center px-0'
       }`}
     >
