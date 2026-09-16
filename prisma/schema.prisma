@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  username  String   @unique
+  password  String
+  name      String
+  role      String   // "owner" | "manager"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Truck {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  registrationNumber String   @unique
+  ownershipType      String   // "owned" | "hired"
+  capacityTons       Float
+  status             String   // "active" | "maintenance" | "archived"
+  assignedDriverId   String?  @unique @db.ObjectId
+  assignedDriver     Driver?  @relation("TruckDriver", fields: [assignedDriverId], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  trips Trip[]
+}
+
+model Driver {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  phone           String
+  licenseNumber   String?
+  licenseExpiry   DateTime?
+  assignedTruck   Truck?    @relation("TruckDriver")
+  status          String    // "active" | "inactive" | "archived"
+  advanceBalance  Float     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  trips    Trip[]
+  advances Advance[]
+}
+
+model Operator {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  contactPhone   String
+  gstNumber      String?
+  status         String   // "active" | "archived"
+  runningBalance Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  trips         Trip[]
+  ledgerEntries LedgerEntry[]
+}
+
+model Trip {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  tripNumber       String    @unique
+  truckId          String    @db.ObjectId
+  driverId         String    @db.ObjectId
+  operatorId       String?   @db.ObjectId
+  origin           String
+  destination      String
+  cargoDetails     String
+  freightAmount    Float
+  fuelExpenses     Float     @default(0)
+  otherExpenses    Float     @default(0)
+  hiredTruckPayout Float     @default(0)
+  status           String    // "draft" | "in_transit" | "completed" | "invoiced" | "paid"
+  departureDate    DateTime
+  arrivalDate      DateTime?
+  netProfit        Float     @default(0)
+  advancesTotal    Float     @default(0)
+
+  // --- Fields added from physical form ---
+  startMeterReading Float?
+  endMeterReading   Float?
+  destinationKm     Float?
+  cargoWeight       Float?
+  helpers           String[]
+  dieselQuantity    Float?
+  ureaQuantity      Float?
+
+  // Expenses tracking (e.g. 5k given at departure, 1k returned at arrival)
+  expenseGiven      Float?
+  expenseReturned   Float?
+
+  /// Settings-defined custom form values
+  customFields      Json?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  truck        Truck         @relation(fields: [truckId], references: [id])
+  driver       Driver        @relation(fields: [driverId], references: [id])
+  operator     Operator?     @relation(fields: [operatorId], references: [id])
+  advances     Advance[]
+  invoiceLines InvoiceLine[]
+}
+
+model Advance {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  driverId  String   @db.ObjectId
+  tripId    String?  @db.ObjectId
+  amount    Float
+  purpose   String   @default("")
+  settled   Boolean  @default(false)
+  issuedAt  DateTime @default(now())
+
+  driver Driver @relation(fields: [driverId], references: [id])
+  trip   Trip?  @relation(fields: [tripId], references: [id])
+}
+
+model LedgerEntry {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  operatorId String   @db.ObjectId
+  amount     Float
+  type       String   // "charge" | "payment"
+  reference  String   @default("")
+  notes      String?
+  timestamp  DateTime @default(now())
+
+  operator Operator @relation(fields: [operatorId], references: [id])
+}
+
+model Invoice {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceNumber String   @unique
+  customerName  String
+  status        String   // "draft" | "sent" | "paid" | "overdue"
+  totalAmount   Float
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines InvoiceLine[]
+}
+
+model InvoiceLine {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceId   String @db.ObjectId
+  tripId      String @db.ObjectId
+  amount      Float
+  description String
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  trip    Trip    @relation(fields: [tripId], references: [id])
+}
+
+model Counter {
+  id  String @id @map("_id")
+  seq Int    @default(0)
+}
