@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/lib/api-auth'
 import { ALL_ROLES, normalizeRole, type AppRole } from '@/lib/roles'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
     const gate = await requirePermission('users')

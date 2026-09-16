@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { patchTrip } from '@/lib/db'
 import { requirePermission } from '@/lib/api-auth'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const body = await req.json()

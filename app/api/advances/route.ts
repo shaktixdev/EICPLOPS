@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { listAdvances, createAdvance } from '@/lib/db'
 import { requirePermission } from '@/lib/api-auth'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
     const gate = await requirePermission('view_fleet')

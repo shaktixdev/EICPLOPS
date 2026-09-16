@@ -13,6 +13,9 @@ import {
   rowsToCsv,
 } from '@/lib/analytics'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 function asPeriod(v: string | null): AnalyticsPeriod {
   if (v === 'daily' || v === 'weekly' || v === 'monthly') return v
   return 'monthly'

@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/api-auth'
 import { importFromBuffer, type ImportKind } from '@/lib/data-import'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   try {

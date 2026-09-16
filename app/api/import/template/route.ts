@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/api-auth'
 import { buildTemplateWorkbook, type ImportKind } from '@/lib/data-import'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET(req: Request) {
   try {

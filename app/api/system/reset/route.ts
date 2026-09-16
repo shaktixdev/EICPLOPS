@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { resetSystemToDefaults } from '@/lib/system-reset'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   try {
