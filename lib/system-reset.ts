@@ -31,53 +31,42 @@ export async function resetSystemToDefaults() {
   const licenseExpiry = new Date()
   licenseExpiry.setFullYear(licenseExpiry.getFullYear() + 2)
 
-  const driver1 = await prisma.driver.create({
-    data: {
-      name: 'Ramesh Patil',
-      phone: '9876543210',
-      licenseNumber: 'KA04-2019-4821',
-      licenseExpiry,
-      status: 'active',
-      advanceBalance: 0,
-    },
-  })
+  const fleet = [
+    { name: 'Anand Swaroop', phone: '9000004601', registrationNumber: 'JH-09-BF-4601' },
+    { name: 'Bhakti Pad Mahto', phone: '9000002239', registrationNumber: 'JH-09-BF-2239' },
+    { name: 'Munni Lal Rai', phone: '9000008484', registrationNumber: 'JH-09-BF-8484' },
+  ]
 
-  const driver2 = await prisma.driver.create({
-    data: {
-      name: 'Suresh Kulkarni',
-      phone: '9876501234',
-      licenseNumber: 'MH12-2020-7734',
-      licenseExpiry,
-      status: 'active',
-      advanceBalance: 0,
-    },
-  })
+  const drivers = []
+  const trucks = []
 
-  const truck1 = await prisma.truck.create({
-    data: {
-      registrationNumber: 'KA-04-MB-4821',
-      vehicleType: 'truck',
-      ownershipType: 'owned',
-      capacityTons: 30,
-      status: 'active',
-      assignedDriverId: driver1.id,
-    },
-  })
-
-  const truck2 = await prisma.truck.create({
-    data: {
-      registrationNumber: 'MH-12-AB-7734',
-      vehicleType: 'tanker',
-      ownershipType: 'hired',
-      capacityTons: 20000,
-      status: 'active',
-      assignedDriverId: driver2.id,
-    },
-  })
+  for (const row of fleet) {
+    const driver = await prisma.driver.create({
+      data: {
+        name: row.name,
+        phone: row.phone,
+        status: 'active',
+        advanceBalance: 0,
+        licenseExpiry,
+      },
+    })
+    const truck = await prisma.truck.create({
+      data: {
+        registrationNumber: row.registrationNumber,
+        vehicleType: 'truck',
+        ownershipType: 'owned',
+        capacityTons: 30,
+        status: 'active',
+        assignedDriverId: driver.id,
+      },
+    })
+    drivers.push(driver.name)
+    trucks.push(truck.registrationNumber)
+  }
 
   return {
     admin: admin.username,
-    drivers: [driver1.name, driver2.name],
-    trucks: [truck1.registrationNumber, truck2.registrationNumber],
+    drivers,
+    trucks,
   }
 }
