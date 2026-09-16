@@ -36,6 +36,10 @@ export async function updateTruckApi(id: string, update: Partial<TruckItem>) {
   return request<TruckItem>(`/api/trucks/${id}`, { method: 'PATCH', body: JSON.stringify(update) })
 }
 
+export async function deleteTruckApi(id: string) {
+  return request<{ ok: boolean }>(`/api/trucks/${id}`, { method: 'DELETE' })
+}
+
 export async function fetchDrivers(): Promise<DriverItem[]> {
   return request('/api/drivers')
 }
@@ -44,6 +48,17 @@ export async function createDriverApi(
   data: Omit<DriverItem, 'id' | 'createdAt' | 'advanceBalance'>
 ) {
   return request<DriverItem>('/api/drivers', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateDriverApi(
+  id: string,
+  update: Partial<Omit<DriverItem, 'id' | 'createdAt' | 'advanceBalance'>>
+) {
+  return request<DriverItem>(`/api/drivers/${id}`, { method: 'PATCH', body: JSON.stringify(update) })
+}
+
+export async function deleteDriverApi(id: string) {
+  return request<{ ok: boolean }>(`/api/drivers/${id}`, { method: 'DELETE' })
 }
 
 export async function fetchOperators(): Promise<OperatorItem[]> {

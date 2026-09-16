@@ -23,6 +23,11 @@ import {
   getEnabledFields,
   loadTripFormFields,
 } from '@/lib/form-fields'
+import {
+  formatCapacity,
+  cargoWeightLabel,
+  usesLiquidCapacity,
+} from '@/lib/types'
 import Link from 'next/link'
 
 type FieldValues = Record<string, string | number>
@@ -168,18 +173,21 @@ export default function NewTripPage() {
 
     const value = values[field.key] ?? ''
     const required = Boolean(field.required) || (field.key === 'hiredTruckPayout' && isHired)
+    const isLiquidCargo = field.key === 'cargoWeight' && usesLiquidCapacity(selectedTruck?.vehicleType)
+    const label = field.key === 'cargoWeight' ? cargoWeightLabel(selectedTruck?.vehicleType) : field.label
+    const placeholder = isLiquidCargo ? 'e.g. 20000' : field.placeholder
 
     return (
       <label key={field.id} className="block space-y-1.5">
         <span className="text-xs font-semibold text-[var(--text-secondary)]">
-          {field.label}
+          {label}
           {required ? ' *' : ''}
         </span>
         {field.type === 'textarea' ? (
           <textarea
             className="input-field min-h-[88px] py-2 h-auto"
             required={required}
-            placeholder={field.placeholder}
+            placeholder={placeholder}
             value={String(value)}
             onChange={(e) => setValue(field.key, e.target.value)}
           />
@@ -192,7 +200,7 @@ export default function NewTripPage() {
               field.type === 'number' && field.key === 'freightAmount' && required ? 1000 : undefined
             }
             step={field.type === 'number' ? (field.section === 'finance' ? 100 : 1) : undefined}
-            placeholder={field.placeholder}
+            placeholder={placeholder}
             value={value === undefined || value === null ? '' : value}
             onChange={(e) =>
               setValue(
@@ -348,7 +356,8 @@ export default function NewTripPage() {
                   ) : (
                     trucks.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.registrationNumber} ({t.ownershipType.toUpperCase()} — {t.capacityTons} T)
+                        {t.registrationNumber} ({t.ownershipType.toUpperCase()} —{' '}
+                        {formatCapacity(t.capacityTons, t.vehicleType)})
                         {t.assignedDriverName ? ` · ${t.assignedDriverName}` : ''}
                       </option>
                     ))

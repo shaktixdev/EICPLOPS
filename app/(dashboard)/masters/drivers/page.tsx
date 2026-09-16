@@ -3,19 +3,27 @@
 import React, { useEffect, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { DriverModal } from '@/components/masters/driver-modal'
-import { fetchDrivers, createAdvanceApi, type DriverItem } from '@/lib/client-data'
+import {
+  fetchDrivers,
+  createAdvanceApi,
+  deleteDriverApi,
+  type DriverItem,
+} from '@/lib/client-data'
 import { usePermissions } from '@/hooks/use-permissions'
-import { Plus, Search, AlertTriangle, Wallet } from 'lucide-react'
+import { Plus, Search, AlertTriangle, Wallet, Pencil, Trash2 } from 'lucide-react'
 
 export default function DriversMasterPage() {
   const { can } = usePermissions()
   const canWrite = can('masters_write')
+  const canDelete = can('delete_data')
   const [drivers, setDrivers] = useState<DriverItem[]>([])
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingDriver, setEditingDriver] = useState<DriverItem | null>(null)
   const [selectedDriverForAdv, setSelectedDriverForAdv] = useState<DriverItem | null>(null)
   const [advanceAmount, setAdvanceAmount] = useState(1000)
   const [advancePurpose, setAdvancePurpose] = useState('Fuel & Cash Advance')
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const refreshList = async () => {
     setDrivers(await fetchDrivers())
@@ -24,6 +32,34 @@ export default function DriversMasterPage() {
   useEffect(() => {
     refreshList().catch(console.error)
   }, [])
+
+  const openCreate = () => {
+    setEditingDriver(null)
+    setIsModalOpen(true)
+  }
+
+  const openEdit = (driver: DriverItem) => {
+    setEditingDriver(driver)
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setEditingDriver(null)
+  }
+
+  const handleDelete = async (driver: DriverItem) => {
+    if (!confirm(`Delete driver ${driver.name}? This cannot be undone.`)) return
+    setBusyId(driver.id)
+    try {
+      await deleteDriverApi(driver.id)
+      await refreshList()
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete driver')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   const handleIssueAdvance = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,7 +84,6 @@ export default function DriversMasterPage() {
       d.phone.includes(search)
   )
 
-  // License expiry check (warning if expiring within 60 days)
   const isLicenseExpiringSoon = (expiryDateStr?: string) => {
     if (!expiryDateStr) return false
     const expiry = new Date(expiryDateStr).getTime()
@@ -58,12 +93,14 @@ export default function DriversMasterPage() {
     return daysLeft < 60
   }
 
+  const showActions = canWrite || canDelete
+  const colSpan = showActions ? 7 : 6
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <Header title="Drivers" subtitle="Driver profiles, license validity tracking, and cash advance ledgers" />
 
       <div className="px-6 pb-8 space-y-5">
-        {/* Top Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-[var(--text-muted)]" />
@@ -77,17 +114,13 @@ export default function DriversMasterPage() {
           </div>
 
           {canWrite && (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="btn-primary w-full sm:w-auto"
-            >
+            <button onClick={openCreate} className="btn-primary w-full sm:w-auto">
               <Plus className="w-4 h-4" />
               <span>Add Driver</span>
             </button>
           )}
         </div>
 
-        {/* Data Table */}
         <div className="surface-card overflow-hidden animate-fade-up">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -99,13 +132,13 @@ export default function DriversMasterPage() {
                   <th className="py-4 px-6 font-medium">License Expiry</th>
                   <th className="py-4 px-6 font-medium">Assigned Truck</th>
                   <th className="py-4 px-6 font-medium">Outstanding Advance</th>
-                  {canWrite && <th className="py-4 px-6 text-right font-medium">Actions</th>}
+                  {showActions && <th className="py-4 px-6 text-right font-medium">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-color)] text-sm">
                 {filteredDrivers.length === 0 ? (
                   <tr>
-                    <td colSpan={canWrite ? 7 : 6} className="py-8 text-center text-[var(--text-muted)]">
+                    <td colSpan={colSpan} className="py-8 text-center text-[var(--text-muted)]">
                       No driver masters found matching search criteria.
                     </td>
                   </tr>
@@ -151,15 +184,39 @@ export default function DriversMasterPage() {
                             ₹{driver.advanceBalance.toLocaleString('en-IN')}
                           </span>
                         </td>
-                        {canWrite && (
+                        {showActions && (
                           <td className="py-4 px-6 text-right">
-                            <button
-                              onClick={() => setSelectedDriverForAdv(driver)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--mint-soft)] hover:bg-[color-mix(in_srgb,var(--mint)_45%,white)] text-[var(--accent-600)] text-xs font-semibold transition-colors"
-                            >
-                              <Wallet className="w-3.5 h-3.5" />
-                              <span>Issue Advance</span>
-                            </button>
+                            <div className="inline-flex items-center gap-2 flex-wrap justify-end">
+                              {canWrite && (
+                                <>
+                                  <button
+                                    onClick={() => openEdit(driver)}
+                                    disabled={busyId === driver.id}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[var(--bg-subtle)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-semibold transition-colors"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => setSelectedDriverForAdv(driver)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--mint-soft)] hover:bg-[color-mix(in_srgb,var(--mint)_45%,white)] text-[var(--accent-600)] text-xs font-semibold transition-colors"
+                                  >
+                                    <Wallet className="w-3.5 h-3.5" />
+                                    <span>Advance</span>
+                                  </button>
+                                </>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => handleDelete(driver)}
+                                  disabled={busyId === driver.id}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
+                                </button>
+                              )}
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -172,9 +229,13 @@ export default function DriversMasterPage() {
         </div>
       </div>
 
-      <DriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={refreshList} />
+      <DriverModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onSuccess={refreshList}
+        driver={editingDriver}
+      />
 
-      {/* Advance Modal */}
       {selectedDriverForAdv && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-5">
@@ -220,10 +281,7 @@ export default function DriversMasterPage() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                >
+                <button type="submit" className="btn-primary">
                   Save Record
                 </button>
               </div>

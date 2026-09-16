@@ -1,3 +1,5 @@
+import { usesLiquidCapacity } from '@/lib/types'
+
 export type FormFieldType = 'text' | 'number' | 'textarea'
 
 export type FormFieldSection = 'route' | 'physical' | 'finance' | 'custom'
@@ -43,11 +45,12 @@ export const FIELD_UNITS: Record<string, string> = {
   netProfit: '₹',
 }
 
-export function formatFieldValue(key: string, value: unknown): string {
+export function formatFieldValue(key: string, value: unknown, vehicleType?: string | null): string {
   if (value === null || value === undefined) return ''
   if (Array.isArray(value)) return value.filter(Boolean).join(', ')
 
-  const unit = FIELD_UNITS[key]
+  let unit = FIELD_UNITS[key]
+  if (key === 'cargoWeight' && usesLiquidCapacity(vehicleType)) unit = 'L'
 
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return ''

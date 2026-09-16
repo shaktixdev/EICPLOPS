@@ -8,10 +8,12 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import {
   fetchTrips,
   fetchAdvances,
+  fetchTrucks,
   type TripItem,
   type AdvanceItem,
 } from '@/lib/client-data'
 import { loadTripFormFields } from '@/lib/form-fields'
+import { formatCargoWeight } from '@/lib/types'
 import { ArrivalModal } from '@/components/trips/arrival-modal'
 import {
   ArrowLeft,
@@ -27,17 +29,24 @@ export default function TripDetailPage() {
   const [trip, setTrip] = useState<TripItem | null>(null)
   const [advances, setAdvances] = useState<AdvanceItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [truckVehicleType, setTruckVehicleType] = useState<string | null>(null)
 
   const [isArrivalModalOpen, setIsArrivalModalOpen] = useState(false)
 
   const reload = useCallback(async () => {
-    const [trips, allAdvances] = await Promise.all([fetchTrips(), fetchAdvances()])
+    const [trips, allAdvances, trucks] = await Promise.all([
+      fetchTrips(),
+      fetchAdvances(),
+      fetchTrucks(),
+    ])
     const found = trips.find((t) => t.id === tripId) ?? null
     setTrip(found)
     if (found) {
       setAdvances(allAdvances.filter((a) => a.tripId === found.id || a.driverId === found.driverId))
+      setTruckVehicleType(trucks.find((t) => t.id === found.truckId)?.vehicleType || null)
     } else {
       setAdvances([])
+      setTruckVehicleType(null)
     }
     setLoading(false)
   }, [tripId])
@@ -246,8 +255,12 @@ export default function TripDetailPage() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-[var(--text-muted)] uppercase block text-[10px] font-semibold">Cargo Weight</span>
-                  <span className="font-medium text-[var(--text-primary)]">{trip.cargoWeight ? `${trip.cargoWeight} MT` : 'N/A'}</span>
+                  <span className="text-[var(--text-muted)] uppercase block text-[10px] font-semibold">
+                    {truckVehicleType === 'tanker' ? 'Cargo Volume' : 'Cargo Weight'}
+                  </span>
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {formatCargoWeight(trip.cargoWeight, truckVehicleType)}
+                  </span>
                 </div>
 
                 <div>

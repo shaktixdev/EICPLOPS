@@ -1,6 +1,71 @@
+export type VehicleType = 'truck' | 'tanker' | 'tipper' | 'trailer' | 'container' | 'other'
+
+export const VEHICLE_TYPES: Array<{ id: VehicleType; label: string }> = [
+  { id: 'truck', label: 'Truck' },
+  { id: 'tanker', label: 'Tanker' },
+  { id: 'tipper', label: 'Tipper' },
+  { id: 'trailer', label: 'Trailer' },
+  { id: 'container', label: 'Container' },
+  { id: 'other', label: 'Other' },
+]
+
+export function vehicleTypeLabel(type?: string | null): string {
+  const found = VEHICLE_TYPES.find((v) => v.id === type)
+  return found?.label || 'Truck'
+}
+
+export function normalizeVehicleType(type?: string | null): VehicleType {
+  const t = String(type || 'truck')
+    .toLowerCase()
+    .trim()
+  if (VEHICLE_TYPES.some((v) => v.id === t)) return t as VehicleType
+  return 'truck'
+}
+
+/** Tankers carry liquid — capacity / cargo measured in litres; others in metric tons. */
+export function usesLiquidCapacity(vehicleType?: string | null): boolean {
+  return normalizeVehicleType(vehicleType) === 'tanker'
+}
+
+export function capacityUnit(vehicleType?: string | null): 'L' | 'MT' {
+  return usesLiquidCapacity(vehicleType) ? 'L' : 'MT'
+}
+
+export function capacityUnitLabel(vehicleType?: string | null): string {
+  return usesLiquidCapacity(vehicleType) ? 'Litres' : 'Tons'
+}
+
+export function capacityFieldLabel(vehicleType?: string | null): string {
+  return usesLiquidCapacity(vehicleType) ? 'Capacity (Litres)' : 'Capacity (Metric Tons)'
+}
+
+export function formatCapacity(capacity: number, vehicleType?: string | null): string {
+  const n = Number(capacity)
+  if (!Number.isFinite(n)) return '—'
+  if (usesLiquidCapacity(vehicleType)) return `${n.toLocaleString('en-IN')} L`
+  return `${n} Tons`
+}
+
+export function defaultCapacity(vehicleType?: string | null): number {
+  return usesLiquidCapacity(vehicleType) ? 20000 : 30
+}
+
+export function cargoWeightLabel(vehicleType?: string | null): string {
+  return usesLiquidCapacity(vehicleType) ? 'Cargo Volume (Litres)' : 'Cargo Weight (MT)'
+}
+
+export function formatCargoWeight(weight?: number | null, vehicleType?: string | null): string {
+  if (weight === null || weight === undefined || !Number.isFinite(Number(weight))) return 'N/A'
+  const n = Number(weight)
+  return usesLiquidCapacity(vehicleType)
+    ? `${n.toLocaleString('en-IN')} L`
+    : `${n} MT`
+}
+
 export interface TruckItem {
   id: string
   registrationNumber: string
+  vehicleType: VehicleType
   ownershipType: 'owned' | 'hired'
   capacityTons: number
   status: 'active' | 'maintenance' | 'archived'

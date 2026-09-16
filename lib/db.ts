@@ -24,6 +24,7 @@ export function mapTruck(t: any): TruckItem {
   return {
     id: t.id,
     registrationNumber: t.registrationNumber,
+    vehicleType: (t.vehicleType || 'truck') as TruckItem['vehicleType'],
     ownershipType: t.ownershipType,
     capacityTons: t.capacityTons,
     status: t.status,
@@ -170,6 +171,7 @@ export async function createTruck(data: Omit<TruckItem, 'id' | 'createdAt'>) {
   const truck = await prisma.truck.create({
     data: {
       registrationNumber: data.registrationNumber,
+      vehicleType: data.vehicleType || 'truck',
       ownershipType: data.ownershipType,
       capacityTons: data.capacityTons,
       status: data.status,
@@ -181,10 +183,23 @@ export async function createTruck(data: Omit<TruckItem, 'id' | 'createdAt'>) {
 }
 
 export async function patchTruck(id: string, update: Partial<TruckItem>) {
+  if (update.assignedDriverId) {
+    const previous = await prisma.truck.findMany({
+      where: { assignedDriverId: update.assignedDriverId, NOT: { id } },
+    })
+    for (const t of previous) {
+      await prisma.truck.update({
+        where: { id: t.id },
+        data: { assignedDriverId: null },
+      })
+    }
+  }
+
   const truck = await prisma.truck.update({
     where: { id },
     data: {
       ...(update.registrationNumber !== undefined && { registrationNumber: update.registrationNumber }),
+      ...(update.vehicleType !== undefined && { vehicleType: update.vehicleType }),
       ...(update.ownershipType !== undefined && { ownershipType: update.ownershipType }),
       ...(update.capacityTons !== undefined && { capacityTons: update.capacityTons }),
       ...(update.status !== undefined && { status: update.status }),
@@ -193,6 +208,76 @@ export async function patchTruck(id: string, update: Partial<TruckItem>) {
     include: { assignedDriver: true },
   })
   return mapTruck(truck)
+}
+
+export async function deleteTruck(id: string) {
+  const trips = await prisma.trip.count({ where: { truckId: id } })
+  if (trips > 0) {
+    throw new Error('Cannot delete truck with trip history. Archive it instead.')
+  }
+  await prisma.truck.update({ where: { id }, data: { assignedDriverId: null } })
+  await prisma.truck.delete({ where: { id } })
+  return { ok: true }
+}
+
+export async function patchDriver(
+  id: string,
+  update: Partial<Omit<DriverItem, 'id' | 'createdAt' | 'advanceBalance'>>
+) {
+  await prisma.driver.update({
+    where: { id },
+    data: {
+      ...(update.name !== undefined && { name: update.name }),
+      ...(update.phone !== undefined && { phone: update.phone }),
+      ...(update.licenseNumber !== undefined && {
+        licenseNumber: update.licenseNumber?.trim() || null,
+      }),
+      ...(update.licenseExpiry !== undefined && {
+        licenseExpiry: update.licenseExpiry ? new Date(update.licenseExpiry) : null,
+      }),
+      ...(update.status !== undefined && { status: update.status }),
+    },
+  })
+
+  if (update.assignedTruckId !== undefined) {
+    // Clear this driver from any truck
+    const previous = await prisma.truck.findMany({ where: { assignedDriverId: id } })
+    for (const t of previous) {
+      await prisma.truck.update({
+        where: { id: t.id },
+        data: { assignedDriverId: null },
+      })
+    }
+    if (update.assignedTruckId) {
+      await prisma.truck.update({
+        where: { id: update.assignedTruckId },
+        data: { assignedDriverId: id },
+      })
+    }
+  }
+
+  const withTruck = await prisma.driver.findUnique({
+    where: { id },
+    include: { assignedTruck: true },
+  })
+  return mapDriver(withTruck!)
+}
+
+export async function deleteDriver(id: string) {
+  const trips = await prisma.trip.count({ where: { driverId: id } })
+  if (trips > 0) {
+    throw new Error('Cannot delete driver with trip history. Set status to inactive/archived instead.')
+  }
+  const advances = await prisma.advance.count({ where: { driverId: id } })
+  if (advances > 0) {
+    throw new Error('Cannot delete driver with advance records. Set status to inactive instead.')
+  }
+  await prisma.truck.updateMany({
+    where: { assignedDriverId: id },
+    data: { assignedDriverId: null },
+  })
+  await prisma.driver.delete({ where: { id } })
+  return { ok: true }
 }
 
 export async function listDrivers(): Promise<DriverItem[]> {

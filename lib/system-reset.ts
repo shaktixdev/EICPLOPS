@@ -56,6 +56,7 @@ export async function resetSystemToDefaults() {
   const truck1 = await prisma.truck.create({
     data: {
       registrationNumber: 'KA-04-MB-4821',
+      vehicleType: 'truck',
       ownershipType: 'owned',
       capacityTons: 30,
       status: 'active',
@@ -66,8 +67,9 @@ export async function resetSystemToDefaults() {
   const truck2 = await prisma.truck.create({
     data: {
       registrationNumber: 'MH-12-AB-7734',
+      vehicleType: 'tanker',
       ownershipType: 'hired',
-      capacityTons: 25,
+      capacityTons: 20000,
       status: 'active',
       assignedDriverId: driver2.id,
     },

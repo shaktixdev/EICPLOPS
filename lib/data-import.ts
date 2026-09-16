@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
 import { prisma } from '@/lib/prisma'
 import { createTruck, createDriver, createTrip, listTrucks, listDrivers } from '@/lib/db'
+import { normalizeVehicleType } from '@/lib/types'
 
 export type ImportKind = 'trucks' | 'drivers' | 'trips'
 
@@ -51,10 +52,17 @@ export function buildTemplateWorkbook(kind: ImportKind): Buffer {
   let sample: (string | number)[][]
 
   if (kind === 'trucks') {
-    headers = ['registrationNumber', 'ownershipType', 'capacityTons', 'status', 'assignedDriverPhone']
+    headers = [
+      'registrationNumber',
+      'vehicleType',
+      'ownershipType',
+      'capacityTons',
+      'status',
+      'assignedDriverPhone',
+    ]
     sample = [
-      ['KA-04-MB-4821', 'owned', 30, 'active', '9876543210'],
-      ['MH-12-AB-7734', 'hired', 25, 'active', ''],
+      ['KA-04-MB-4821', 'truck', 'owned', 30, 'active', '9876543210'],
+      ['MH-12-AB-7734', 'tanker', 'hired', 20000, 'active', ''],
     ]
   } else if (kind === 'drivers') {
     headers = ['name', 'phone', 'licenseNumber', 'licenseExpiry', 'status']
@@ -192,6 +200,9 @@ async function importTrucks(rows: Record<string, unknown>[]): Promise<ImportResu
 
       const ownershipRaw = (cell(row, 'ownershipType', 'ownership') || 'owned').toLowerCase()
       const ownershipType = ownershipRaw === 'hired' ? 'hired' : 'owned'
+      const vehicleType = normalizeVehicleType(
+        cell(row, 'vehicleType', 'vehicle_type', 'type', 'truckType')
+      )
       const capacityTons = num(row, 'capacityTons', 'capacity', 'tons') || 25
       const statusRaw = cell(row, 'status') || 'active'
       const status = ['active', 'maintenance', 'archived'].includes(statusRaw) ? statusRaw : 'active'
@@ -210,6 +221,7 @@ async function importTrucks(rows: Record<string, unknown>[]): Promise<ImportResu
         await prisma.truck.update({
           where: { id: existing.id },
           data: {
+            vehicleType,
             ownershipType,
             capacityTons,
             status,
@@ -220,6 +232,7 @@ async function importTrucks(rows: Record<string, unknown>[]): Promise<ImportResu
       } else {
         await createTruck({
           registrationNumber,
+          vehicleType,
           ownershipType,
           capacityTons,
           status: status as 'active' | 'maintenance' | 'archived',

@@ -21,6 +21,7 @@ model User {
 model Truck {
   id                 String   @id @default(auto()) @map("_id") @db.ObjectId
   registrationNumber String   @unique
+  vehicleType        String   @default("truck") // truck | tanker | tipper | trailer | container | other
   ownershipType      String   // "owned" | "hired"
   capacityTons       Float
   status             String   // "active" | "maintenance" | "archived"

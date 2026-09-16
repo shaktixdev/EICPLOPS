@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { fetchTrips, type TripItem } from '@/lib/client-data'
+import { fetchTrips, fetchTrucks, type TripItem } from '@/lib/client-data'
 import {
   FormFieldConfig,
   SECTION_LABELS,
@@ -12,6 +12,7 @@ import {
   fieldLabelWithoutUnit,
 } from '@/lib/form-fields'
 import { loadOpsSettings, saveOpsSettings } from '@/lib/ops-settings'
+import { cargoWeightLabel } from '@/lib/types'
 
 type PrintRow = { key: string; label: string; value: string; section: FormFieldSection | 'meta' }
 
@@ -27,8 +28,8 @@ function isFilled(key: string, value: unknown): boolean {
   return Boolean(value)
 }
 
-function formatValue(key: string, value: unknown): string {
-  return formatFieldValue(key, value)
+function formatValue(key: string, value: unknown, vehicleType?: string | null): string {
+  return formatFieldValue(key, value, vehicleType)
 }
 
 function readTripField(trip: TripItem, key: string): unknown {
@@ -56,7 +57,11 @@ function readTripField(trip: TripItem, key: string): unknown {
   return undefined
 }
 
-function buildPrintRows(trip: TripItem, fields: FormFieldConfig[]): PrintRow[] {
+function buildPrintRows(
+  trip: TripItem,
+  fields: FormFieldConfig[],
+  vehicleType?: string | null
+): PrintRow[] {
   const rows: PrintRow[] = []
   const usedKeys = new Set<string>()
 
@@ -65,10 +70,14 @@ function buildPrintRows(trip: TripItem, fields: FormFieldConfig[]): PrintRow[] {
     if (!field.enabled) continue
     const raw = readTripField(trip, field.key)
     if (!isFilled(field.key, raw)) continue
+    const label =
+      field.key === 'cargoWeight'
+        ? fieldLabelWithoutUnit(cargoWeightLabel(vehicleType))
+        : fieldLabelWithoutUnit(field.label)
     rows.push({
       key: field.key,
-      label: fieldLabelWithoutUnit(field.label),
-      value: formatValue(field.key, raw),
+      label,
+      value: formatValue(field.key, raw, vehicleType),
       section: field.section,
     })
     usedKeys.add(field.key)
@@ -81,7 +90,7 @@ function buildPrintRows(trip: TripItem, fields: FormFieldConfig[]): PrintRow[] {
       rows.push({
         key,
         label: fieldLabelWithoutUnit(cfg?.label || key.replace(/^custom_/, '').replace(/_/g, ' ')),
-        value: formatValue(key, value),
+        value: formatValue(key, value, vehicleType),
         section: cfg?.section || 'custom',
       })
       usedKeys.add(key)
@@ -103,7 +112,7 @@ function buildPrintRows(trip: TripItem, fields: FormFieldConfig[]): PrintRow[] {
       value:
         extra.key === 'arrivalDate'
           ? formatDateTime(String(raw))
-          : formatValue(extra.key, raw),
+          : formatValue(extra.key, raw, vehicleType),
       section: extra.section,
     })
   }
@@ -143,6 +152,7 @@ export default function TripPrintPage() {
   const [companyAddress, setCompanyAddress] = useState('')
   const [gateId, setGateId] = useState('')
   const [terminalId, setTerminalId] = useState('')
+  const [vehicleType, setVehicleType] = useState<string | null>(null)
 
   useEffect(() => {
     setFields(loadTripFormFields())
@@ -155,12 +165,21 @@ export default function TripPrintPage() {
   }, [])
 
   useEffect(() => {
-    fetchTrips()
-      .then((trips) => setTrip(trips.find((t) => t.id === tripId) ?? null))
+    Promise.all([fetchTrips(), fetchTrucks()])
+      .then(([trips, trucks]) => {
+        const found = trips.find((t) => t.id === tripId) ?? null
+        setTrip(found)
+        if (found) {
+          setVehicleType(trucks.find((t) => t.id === found.truckId)?.vehicleType || null)
+        }
+      })
       .catch(console.error)
   }, [tripId])
 
-  const rows = useMemo(() => (trip ? buildPrintRows(trip, fields) : []), [trip, fields])
+  const rows = useMemo(
+    () => (trip ? buildPrintRows(trip, fields, vehicleType) : []),
+    [trip, fields, vehicleType]
+  )
 
   const sections = useMemo(() => {
     const order: FormFieldSection[] = ['route', 'physical', 'finance', 'custom']
